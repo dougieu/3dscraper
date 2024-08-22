@@ -8,91 +8,96 @@ import time
 import asyncio
 import aiohttp
 from concurrent.futures import ThreadPoolExecutor
+from ttkbootstrap import Style
 
 class BitmojiCustomizer:
     def __init__(self, master):
         self.master = master
         self.master.title("Bitmoji Customizer")
-        self.master.geometry("600x450")
-        self.master.configure(bg="#ffffff")
-
-        # Initialize token variable (this was missing before)
+        self.master.geometry("800x600")
+        
+        # Apply ttkbootstrap theme
+        self.style = Style(theme="darkly")
+        
         self.token = tk.StringVar()
-
-        # Set up styles
-        self.style = ttk.Style()
-        self.style.theme_use("clam")
-
-        # Custom style for buttons
-        self.style.configure("Custom.TButton", 
-                             padding=10, 
-                             font=("Helvetica", 12, "bold"), 
-                             background="#4CAF50", 
-                             foreground="white",
-                             borderwidth=0,
-                             relief="flat")
-
-        # Button hover effect (changes background color on hover)
-        self.style.map("Custom.TButton", 
-                       background=[('active', '#45a049')])
-
-        # Custom style for labels
-        self.style.configure("Custom.TLabel", 
-                             font=("Helvetica", 12, "bold"), 
-                             background="#ffffff", 
-                             foreground="#333333")
-
-        # Custom style for entry boxes
-        self.style.configure("Custom.TEntry", 
-                             font=("Helvetica", 12), 
-                             padding=5,
-                             fieldbackground="#f0f0f0",
-                             foreground="#333333")
-
-        # Adding a shadow effect to the main frame
-        self.main_frame = ttk.Frame(self.master, padding="20 20 20 20", style="Custom.TFrame")
-        self.main_frame.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
-
+        
         self.create_widgets()
-
+        
     def create_widgets(self):
+        # Main frame
+        self.main_frame = ttk.Frame(self.master, padding="40")
+        self.main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Title
         title_label = ttk.Label(self.main_frame, 
                                 text="Bitmoji Customizer", 
-                                font=("Helvetica", 24, "bold"), 
-                                style="Custom.TLabel")
-        title_label.pack(pady=(0, 20))
-
-        token_frame = ttk.Frame(self.main_frame, style="Custom.TFrame")
-        token_frame.pack(fill=tk.X, pady=10)
-
+                                font=("Roboto", 36, "bold"),
+                                bootstyle="inverse-primary")
+        title_label.pack(pady=(0, 30))
+        
+        # Token entry frame
+        token_frame = ttk.Frame(self.main_frame)
+        token_frame.pack(fill=tk.X, pady=20)
+        
         ttk.Label(token_frame, 
                   text="Enter Bitmoji Token:", 
-                  style="Custom.TLabel").pack(side=tk.LEFT, padx=(0, 10))
+                  font=("Roboto", 14)).pack(side=tk.LEFT, padx=(0, 10))
+        
         self.token_entry = ttk.Entry(token_frame, 
                                      textvariable=self.token, 
                                      width=40, 
-                                     style="Custom.TEntry")
+                                     font=("Roboto", 14))
         self.token_entry.pack(side=tk.LEFT, expand=True, fill=tk.X)
-
-        # Adding highlight effect when entry is focused
-        self.token_entry.bind("<FocusIn>", lambda e: self.token_entry.configure(style="Focused.TEntry"))
-        self.token_entry.bind("<FocusOut>", lambda e: self.token_entry.configure(style="Custom.TEntry"))
-
-        ttk.Button(self.main_frame, 
-                   text="Enter", 
-                   command=self.on_enter, 
-                   style="Custom.TButton").pack(pady=20)
-
+        
+        # Enter button
+        enter_button = ttk.Button(self.main_frame, 
+                                  text="Enter", 
+                                  command=self.on_enter,
+                                  bootstyle="success-outline",
+                                  width=20)
+        enter_button.pack(pady=30)
+        
+        # Add hover effect to button
+        enter_button.bind("<Enter>", lambda e: enter_button.configure(bootstyle="success"))
+        enter_button.bind("<Leave>", lambda e: enter_button.configure(bootstyle="success-outline"))
+        
     def on_enter(self):
         token = self.token_entry.get().strip()
         if not token:
             messagebox.showerror("Error", "Please enter a valid token")
             return
-
+        
+        # Show loading animation
+        self.show_loading_animation()
+        
+        # Fetch Bitmoji details in a separate thread
+        self.master.after(100, lambda: self.threaded_fetch_details(token))
+        
+    def show_loading_animation(self):
+        self.loading_window = tk.Toplevel(self.master)
+        self.loading_window.title("Loading")
+        self.loading_window.geometry("300x100")
+        self.loading_window.transient(self.master)
+        self.loading_window.grab_set()
+        
+        loading_label = ttk.Label(self.loading_window, 
+                                  text="Fetching Bitmoji details...", 
+                                  font=("Roboto", 14))
+        loading_label.pack(pady=20)
+        
+        progress_bar = ttk.Progressbar(self.loading_window, 
+                                       mode="indeterminate", 
+                                       length=200)
+        progress_bar.pack(pady=10)
+        progress_bar.start()
+        
+    def threaded_fetch_details(self, token):
         details = self.fetch_bitmoji_details(token)
+        self.loading_window.destroy()
+        
         if details:
             self.open_section_selection_window(token, details)
-
+        
     def fetch_bitmoji_details(self, token):
         url = "https://us-east-1-bitmoji.api.snapchat.com/api/avatar-builder-v3/avatar"
         headers = {
@@ -113,46 +118,51 @@ class BitmojiCustomizer:
     def open_section_selection_window(self, token, details):
         section_window = tk.Toplevel(self.master)
         section_window.title("Bitmoji Section Selection")
-        section_window.geometry("450x400")
-        section_window.configure(bg="#ffffff")
-
-        frame = ttk.Frame(section_window, padding="20 20 20 20", style="Custom.TFrame")
+        section_window.geometry("600x500")
+        
+        frame = ttk.Frame(section_window, padding="40")
         frame.pack(fill=tk.BOTH, expand=True)
-
+        
         ttk.Label(frame, 
                   text="Select Bitmoji Section", 
-                  font=("Helvetica", 18, "bold"), 
-                  style="Custom.TLabel").pack(pady=(0, 20))
-
+                  font=("Roboto", 24, "bold"),
+                  bootstyle="inverse-primary").pack(pady=(0, 30))
+        
         ttk.Label(frame, 
                   text="Pick a section:", 
-                  style="Custom.TLabel").pack(pady=5)
-
+                  font=("Roboto", 14)).pack(pady=10)
+        
         section_var = tk.StringVar()
         section_combobox = ttk.Combobox(frame, 
                                         textvariable=section_var, 
-                                        state="readonly", 
-                                        style="Custom.TCombobox")
-        section_combobox['values'] = ['hats', 'tops', 'bottoms', 'glasses', 'outerwear', 'outfits']
+                                        state="readonly",
+                                        values=['hat', 'top', 'bottom', 'glasses', 'outerwear', 'outfit'],
+                                        font=("Roboto", 14))
         section_combobox.pack(pady=10)
-
+        
         ttk.Label(frame, 
                   text="Starting number:", 
-                  style="Custom.TLabel").pack(pady=5)
-        start_entry = ttk.Entry(frame, style="Custom.TEntry")
+                  font=("Roboto", 14)).pack(pady=10)
+        start_entry = ttk.Entry(frame, font=("Roboto", 14))
         start_entry.pack(pady=5)
-
+        
         ttk.Label(frame, 
                   text="Ending number:", 
-                  style="Custom.TLabel").pack(pady=5)
-        end_entry = ttk.Entry(frame, style="Custom.TEntry")
+                  font=("Roboto", 14)).pack(pady=10)
+        end_entry = ttk.Entry(frame, font=("Roboto", 14))
         end_entry.pack(pady=5)
-
-        ttk.Button(frame, 
-                   text="Check", 
-                   command=lambda: self.check_action(section_var.get(), start_entry.get(), end_entry.get(), token, details), 
-                   style="Custom.TButton").pack(pady=20)
-
+        
+        check_button = ttk.Button(frame, 
+                                  text="Check", 
+                                  command=lambda: self.check_action(section_var.get(), start_entry.get(), end_entry.get(), token, details),
+                                  bootstyle="primary-outline",
+                                  width=20)
+        check_button.pack(pady=30)
+        
+        # Add hover effect to button
+        check_button.bind("<Enter>", lambda e: check_button.configure(bootstyle="primary"))
+        check_button.bind("<Leave>", lambda e: check_button.configure(bootstyle="primary-outline"))
+        
     def check_action(self, section, start, end, token, details):
         try:
             start = int(start)
@@ -163,7 +173,7 @@ class BitmojiCustomizer:
             messagebox.showerror("Error", "Please enter a valid section and range")
             return
 
-        self.fetch_and_display_images(token, details, section[:-1], start, end)
+        self.fetch_and_display_images(token, details, section, start, end)
 
     def fetch_and_display_images(self, token, details, section, start, end):
         asyncio.run(self.async_fetch_and_display_images(token, details, section, start, end))
@@ -179,7 +189,10 @@ class BitmojiCustomizer:
             images = await asyncio.gather(*tasks)
 
         # Restore original Bitmoji
-        await self.save_bitmoji(token, details, section, details['option_ids'][section])
+        if section in details['option_ids']:
+            await self.save_bitmoji(token, details, section, details['option_ids'][section])
+        else:
+            print(f"Warning: '{section}' not found in option_ids")
 
         # Filter out None values
         valid_images = [img for img in images if img is not None]
@@ -192,23 +205,31 @@ class BitmojiCustomizer:
             original_outerwear = details['option_ids'].get('outerwear')
             details['option_ids']['outerwear'] = 0  # Set outerwear to none
 
-        saved = await self.save_bitmoji(token, details, section, value)
-        
-        # Restore original outerwear
-        if original_outerwear is not None:
-            details['option_ids']['outerwear'] = original_outerwear
+        try:
+            saved = await self.save_bitmoji(token, details, section, value)
+            
+            # Restore original outerwear
+            if original_outerwear is not None:
+                details['option_ids']['outerwear'] = original_outerwear
 
-        avatar_id, session_id = saved['id'].split('_')
-        session_id = str(int(session_id.split('-')[0]) + 1)
-        url = f"https://images.bitmoji.com/3d/avatar/30817224-{avatar_id}_{session_id}-v1.webp?ua=2"
-
-        async with session.get(url) as response:
-            if response.status == 200:
-                img_data = await response.read()
-                return (img_data, value)
-            else:
-                print(f"Failed to fetch image for option {value}: {response.status}")
+            if saved is None or 'id' not in saved:
+                print(f"Error: 'id' not found in saved response for {section} with value {value}")
                 return None
+
+            avatar_id, session_id = saved['id'].split('_')
+            session_id = str(int(session_id.split('-')[0]) + 1)
+            url = f"https://images.bitmoji.com/3d/avatar/30817224-{avatar_id}_{session_id}-v1.webp?ua=2"
+
+            async with session.get(url) as response:
+                if response.status == 200:
+                    img_data = await response.read()
+                    return (img_data, value)
+                else:
+                    print(f"Failed to fetch image for option {value}: {response.status}")
+                    return None
+        except Exception as e:
+            print(f"Error fetching image for {section} with value {value}: {str(e)}")
+            return None
 
     async def save_bitmoji(self, token, details, section, value):
         url = "https://us-east-1-bitmoji.api.snapchat.com/api/avatar-builder-v3/avatar"
@@ -229,53 +250,58 @@ class BitmojiCustomizer:
             async with session.post(url, headers=headers, json=data) as response:
                 print(f"Saved Bitmoji changes for {section} with value {value}: {response.status}")
                 if response.status == 400:
-                    messagebox.showerror("Error", f"Failed to save changes for {section} with value {value}: {await response.text()}")
+                    error_text = await response.text()
+                    print(f"Error saving changes for {section} with value {value}: {error_text}")
+                    return None
                 return await response.json()
 
     def display_images(self, images, token, details, section):
         if not images:
             messagebox.showinfo("No Images", "No valid images were found for the selected range.")
             return
-
+        
         image_window = tk.Toplevel(self.master)
         image_window.title("Bitmoji Images")
-        image_window.geometry("850x650")
-        image_window.configure(bg="#ffffff")
-
-        canvas = tk.Canvas(image_window, bg="#ffffff", highlightthickness=0)
+        image_window.geometry("900x700")
+        
+        canvas = tk.Canvas(image_window, highlightthickness=0)
         canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-
+        
         scrollbar = ttk.Scrollbar(image_window, orient="vertical", command=canvas.yview)
         scrollbar.pack(side=tk.RIGHT, fill="y")
-
-        frame = ttk.Frame(canvas, style="Custom.TFrame")
+        
+        frame = ttk.Frame(canvas)
         canvas.create_window((0, 0), window=frame, anchor="nw")
-
+        
         row = 0
         col = 0
         for img_data, index in images:
             image = Image.open(io.BytesIO(img_data))
-            image = image.resize((150, 150), Image.LANCZOS)  # Increased size and made square
+            image = image.resize((180, 180), Image.LANCZOS)
             photo = ImageTk.PhotoImage(image)
-
+            
             button = ttk.Button(frame, 
                                 image=photo, 
                                 text=f"Option {index}", 
                                 compound="top", 
-                                command=lambda idx=index: self.set_bitmoji_option(token, details, section, idx), 
-                                style="Custom.TButton")
+                                command=lambda idx=index: self.set_bitmoji_option(token, details, section, idx),
+                                bootstyle="light-outline")
             button.photo = photo
-            button.grid(row=row, column=col, padx=15, pady=15)
-
+            button.grid(row=row, column=col, padx=20, pady=20)
+            
+            # Add hover effect to button
+            button.bind("<Enter>", lambda e, b=button: b.configure(bootstyle="light"))
+            button.bind("<Leave>", lambda e, b=button: b.configure(bootstyle="light-outline"))
+            
             col += 1
-            if col == 4:  # 4 columns for better layout
+            if col == 4:
                 col = 0
                 row += 1
-
+        
         frame.update_idletasks()
         canvas.config(scrollregion=canvas.bbox("all"))
         canvas.configure(yscrollcommand=scrollbar.set)
-
+        
     def set_bitmoji_option(self, token, details, section, value):
         asyncio.run(self.save_bitmoji(token, details, section, value))
         messagebox.showinfo("Success", f"Bitmoji updated with option {value} for {section}.")
